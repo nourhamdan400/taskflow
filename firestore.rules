@@ -98,6 +98,30 @@ service cloud.firestore {
         allow delete: if pIsOwner()
           || (pIsMember() && resource.data.createdBy == request.auth.uid);
       }
+
+      match /activity/{activityId} {
+        function isMember() {
+          return signedIn()
+            && request.auth.uid in get(/databases/$(database)/documents/projects/$(projectId)).data.memberIds;
+        }
+
+        function validActivity(d) {
+          return d.keys().hasOnly([
+              'taskId', 'taskTitle', 'action', 'fromStatus', 'toStatus', 'actorId', 'createdAt'
+            ])
+            && isStr(d.taskId, 1, 128)
+            && optStr(d.taskTitle, 120)
+            && d.action in ['created', 'updated', 'status_changed', 'deleted']
+            && (d.fromStatus == null || d.fromStatus in ['todo', 'in_progress', 'done'])
+            && (d.toStatus == null || d.toStatus in ['todo', 'in_progress', 'done'])
+            && d.actorId == request.auth.uid
+            && d.createdAt == request.time;
+        }
+
+        allow read: if isMember();
+        allow create: if isMember() && validActivity(request.resource.data);
+        allow update, delete: if false;
+      }
     }
   }
 }

@@ -5,12 +5,21 @@ import Link from "next/link";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import TaskForm from "@/components/TaskForm";
 import TaskList from "@/components/TaskList";
-import FilterBar, { DEFAULT_FILTERS, applyFilters } from "@/components/FilterBar";
+import FilterBar, {
+  DEFAULT_FILTERS,
+  applyFilters,
+} from "@/components/FilterBar";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { Alert, ErrorState, Loading } from "@/components/States";
 import { useAuth } from "@/hooks/useAuth";
 import { getProject } from "@/services/projects";
-import { createTask, deleteTask, listTasks, updateTask, updateTaskStatus } from "@/services/tasks";
+import {
+  createTask,
+  deleteTask,
+  listTasks,
+  updateTask,
+  updateTaskStatus,
+} from "@/services/tasks";
 import { getUsersByIds } from "@/services/users";
 import { canChangeStatus } from "@/lib/permissions";
 import { friendlyError, isOverdue } from "@/lib/utils";
@@ -34,22 +43,59 @@ function ProjectDetails() {
     try {
       const p = await getProject(id);
       if (!p) return setState("notfound");
-      const [t, users] = await Promise.all([listTasks(id), getUsersByIds(p.memberIds)]);
-      setProject(p); setTasks(t); setMemberMap(users); setState("ready");
+      const [t, users] = await Promise.all([
+        listTasks(id),
+        getUsersByIds(p.memberIds),
+      ]);
+      setProject(p);
+      setTasks(t);
+      setMemberMap(users);
+      setState("ready");
     } catch (err) {
       setState(err?.code === "permission-denied" ? "denied" : "error");
     }
   }, [id]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const members = useMemo(() => (project ? project.memberIds.map((m) => memberMap[m] || { id: m, displayName: "Unknown user" }) : []), [project, memberMap]);
-  const visible = useMemo(() => applyFilters(tasks, filters, isOverdue), [tasks, filters]);
+  const members = useMemo(
+    () =>
+      project
+        ? project.memberIds.map(
+            (m) => memberMap[m] || { id: m, displayName: "Unknown user" },
+          )
+        : [],
+    [project, memberMap],
+  );
+  const visible = useMemo(
+    () => applyFilters(tasks, filters, isOverdue),
+    [tasks, filters],
+  );
 
   if (state === "loading") return <Loading text="Loading project…" />;
-  if (state === "notfound") return <ErrorState title="Project not found" message="This project doesn't exist or was deleted." />;
-  if (state === "denied") return <ErrorState title="Access denied" message="You are not a member of this project." />;
-  if (state === "error") return <ErrorState message="Could not load the project. Check your connection." onRetry={load} />;
+  if (state === "notfound")
+    return (
+      <ErrorState
+        title="Project not found"
+        message="This project doesn't exist or was deleted."
+      />
+    );
+  if (state === "denied")
+    return (
+      <ErrorState
+        title="Access denied"
+        message="You are not a member of this project."
+      />
+    );
+  if (state === "error")
+    return (
+      <ErrorState
+        message="Could not load the project. Check your connection."
+        onRetry={load}
+      />
+    );
 
   const owner = project.ownerId === user.uid;
 
@@ -57,51 +103,84 @@ function ProjectDetails() {
 
   const handleSave = async (form) => {
     if (editing === "new") await createTask(id, user.uid, form);
-    else await updateTask(id, editing.id, form);
+    else await updateTask(id, editing.id, form, user.uid, editing.status);
     await refreshTasks();
     setEditing(null);
   };
 
   const handleStatus = async (task, status) => {
-    setActionError(""); setBusyId(task.id);
+    setActionError("");
+    setBusyId(task.id);
     try {
-      await updateTaskStatus(id, task.id, status);
-      setTasks((ts) => ts.map((t) => (t.id === task.id ? { ...t, status } : t)));
+      await updateTaskStatus(
+        id,
+        task.id,
+        status,
+        user.uid,
+        task.status,
+        task.title,
+      );
+      setTasks((ts) =>
+        ts.map((t) => (t.id === task.id ? { ...t, status } : t)),
+      );
     } catch (err) {
       setActionError(`Could not update status: ${friendlyError(err)}`);
-    } finally { setBusyId(null); }
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const confirmDelete = async () => {
-    setDeleting(true); setActionError("");
+    setDeleting(true);
+    setActionError("");
     try {
-      await deleteTask(id, toDelete.id);
+      await deleteTask(id, toDelete.id, user.uid, toDelete.title);
       setTasks((ts) => ts.filter((t) => t.id !== toDelete.id));
       setToDelete(null);
     } catch (err) {
       setActionError(`Could not delete task: ${friendlyError(err)}`);
       setToDelete(null);
-    } finally { setDeleting(false); }
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
     <>
-      <nav aria-label="Breadcrumb" className="crumbs"><Link href="/dashboard">← Dashboard</Link></nav>
+      <nav aria-label="Breadcrumb" className="crumbs">
+        <Link href="/dashboard">← Dashboard</Link>
+      </nav>
       <div className="row between wrap page-head">
         <div>
           <h1>{project.name}</h1>
-          {project.description && <p className="muted">{project.description}</p>}
+          {project.description && (
+            <p className="muted">{project.description}</p>
+          )}
         </div>
         <div className="row gap-s wrap">
-          {owner && <Link className="btn btn-secondary" href={`/projects/${id}/settings`}>⚙ Settings</Link>}
-          {editing === null && <button className="btn" onClick={() => setEditing("new")}>+ New task</button>}
+          {owner && (
+            <Link
+              className="btn btn-secondary"
+              href={`/projects/${id}/settings`}
+            >
+              ⚙ Settings
+            </Link>
+          )}
+          {editing === null && (
+            <button className="btn" onClick={() => setEditing("new")}>
+              + New task
+            </button>
+          )}
         </div>
       </div>
 
       <section aria-label="Members" className="members">
         <strong>Members:</strong>{" "}
         {members.map((m) => (
-          <span key={m.id} className="badge">{m.displayName}{m.id === project.ownerId ? " (owner)" : ""}</span>
+          <span key={m.id} className="badge">
+            {m.displayName}
+            {m.id === project.ownerId ? " (owner)" : ""}
+          </span>
         ))}
       </section>
 
@@ -112,7 +191,11 @@ function ProjectDetails() {
             key={editing === "new" ? "new" : editing.id}
             members={members}
             initial={editing === "new" ? null : editing}
-            canChangeStatus={editing === "new" ? true : canChangeStatus(editing, project, user.uid)}
+            canChangeStatus={
+              editing === "new"
+                ? true
+                : canChangeStatus(editing, project, user.uid)
+            }
             onSubmit={handleSave}
             onCancel={() => setEditing(null)}
           />
@@ -121,22 +204,38 @@ function ProjectDetails() {
 
       <Alert>{actionError}</Alert>
       <FilterBar filters={filters} onChange={setFilters} members={members} />
-      <p className="muted" aria-live="polite">Showing {visible.length} of {tasks.length} task{tasks.length !== 1 ? "s" : ""}</p>
+      <p className="muted" aria-live="polite">
+        Showing {visible.length} of {tasks.length} task
+        {tasks.length !== 1 ? "s" : ""}
+      </p>
       <TaskList
-        tasks={visible} totalCount={tasks.length} project={project} uid={user.uid}
-        memberMap={memberMap} busyId={busyId}
-        onStatus={handleStatus} onEdit={setEditing} onDelete={setToDelete}
+        tasks={visible}
+        totalCount={tasks.length}
+        project={project}
+        uid={user.uid}
+        memberMap={memberMap}
+        busyId={busyId}
+        onStatus={handleStatus}
+        onEdit={setEditing}
+        onDelete={setToDelete}
       />
 
       <ConfirmDialog
-        open={Boolean(toDelete)} busy={deleting}
-        title="Delete task?" message={`“${toDelete?.title}” will be permanently deleted.`}
-        onConfirm={confirmDelete} onCancel={() => setToDelete(null)}
+        open={Boolean(toDelete)}
+        busy={deleting}
+        title="Delete task?"
+        message={`“${toDelete?.title}” will be permanently deleted.`}
+        onConfirm={confirmDelete}
+        onCancel={() => setToDelete(null)}
       />
     </>
   );
 }
 
 export default function ProjectPage() {
-  return <ProtectedRoute><ProjectDetails /></ProtectedRoute>;
+  return (
+    <ProtectedRoute>
+      <ProjectDetails />
+    </ProtectedRoute>
+  );
 }

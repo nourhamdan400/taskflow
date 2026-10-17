@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -42,6 +43,7 @@ export default function Navbar() {
           </span>{" "}
           New project
         </Link>
+        <ThemeToggle />
       </nav>
       <div className="sidebar-spacer" />
       <div className="sidebar-note">
