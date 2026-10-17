@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardStats from "@/components/DashboardStats";
+import DashboardCharts from "@/components/DashboardCharts";
 import ProjectCard from "@/components/ProjectCard";
 import { EmptyState, ErrorState, Loading } from "@/components/States";
 import { useAuth } from "@/hooks/useAuth";
@@ -219,6 +220,7 @@ function DashboardContent() {
         </Link>
       </div>
       <DashboardStats stats={stats} />
+      <DashboardCharts tasks={tasks} projects={projects} />
 
       <div
         className="dashboard-toolbar"

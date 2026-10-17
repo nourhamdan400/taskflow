@@ -43,6 +43,12 @@ export default function Navbar() {
           </span>{" "}
           New project
         </Link>
+        <Link href="/roles" className={pathname === "/roles" ? "active" : ""}>
+          <span className="nav-icon" aria-hidden="true">
+            ◈
+          </span>{" "}
+          Roles &amp; permissions
+        </Link>
         <ThemeToggle />
       </nav>
       <div className="sidebar-spacer" />
